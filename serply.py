@@ -23,10 +23,10 @@ def crear_columna_info():
     5. Si lo desea, descargue un documento DOCX con toda la información.
 
     ### Autor y actualización:
-    **Moris Polanco**, 26 ag 2024
+    **Moris Polanco**, 27 ag 2024
 
     ### Cómo citar esta aplicación (formato APA):
-    Polanco, M. (2024). *Diccionario Filosófico del Pragmatismo* [Aplicación web]. https://dicpragmatismo.streamlit.app
+    Polanco, M. (2024). *Diccionario Filosófico del Pragmatismo* [Aplicación web]. https://pragmatismo.streamlit.app
 
     ---
     **Nota:** Esta aplicación utiliza inteligencia artificial para generar definiciones basadas en información disponible en línea. Siempre verifique la información con fuentes académicas para un análisis más profundo.
