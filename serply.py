@@ -89,35 +89,63 @@ with col2:
         response = requests.post(url, headers=headers, data=payload)
         return response.json()['output']['choices'][0]['text'].strip()
 
-    def create_docx(termino, definicion, fuentes):
+    def create_docx(terminos_definiciones):
         doc = Document()
         doc.add_heading('Diccionario Filosófico - Pragmatismo', 0)
 
-        doc.add_heading('Término', level=1)
-        doc.add_paragraph(termino)
+        for termino, (definicion, fuentes) in terminos_definiciones.items():
+            doc.add_heading('Término', level=1)
+            doc.add_paragraph(termino)
 
-        doc.add_heading('Definición', level=2)
-        doc.add_paragraph(definicion)
+            doc.add_heading('Definición', level=2)
+            doc.add_paragraph(definicion)
 
-        doc.add_heading('Fuentes', level=1)
-        for fuente in fuentes:
-            doc.add_paragraph(fuente, style='List Bullet')
+            doc.add_heading('Fuentes', level=1)
+            for fuente in fuentes:
+                doc.add_paragraph(fuente, style='List Bullet')
 
         doc.add_paragraph('\nNota: Este documento fue generado por un asistente de IA. Verifica la información con fuentes académicas para un análisis más profundo.')
 
         return doc
 
-    st.write("Elige un término filosófico de la lista o propón tu propio término:")
+    st.write("Elige un término filosófico de la lista, propón tu propio término, o genera todos los artículos:")
 
-    opcion = st.radio("", ["Elegir de la lista", "Proponer mi propio término"])
+    opcion = st.radio("", ["Elegir de la lista", "Proponer mi propio término", "Generar todos los artículos en batch"])
 
     if opcion == "Elegir de la lista":
         termino = st.selectbox("Selecciona un término:", terminos_filosoficos)
-    else:
+    elif opcion == "Proponer mi propio término":
         termino = st.text_input("Ingresa tu propio término filosófico:")
+    else:
+        termino = None
 
-    if st.button("Obtener definición"):
-        if termino:
+    if st.button("Obtener definición" if opcion != "Generar todos los artículos en batch" else "Generar todos los artículos"):
+        if opcion == "Generar todos los artículos en batch":
+            with st.spinner("Generando todas las definiciones en batch..."):
+                terminos_definiciones = {}
+                for termino in terminos_filosoficos:
+                    # Buscar información relevante
+                    resultados_busqueda = buscar_informacion(termino)
+                    contexto = "\n".join([item.get("snippet", "") for item in resultados_busqueda.get("organic", [])])
+                    fuentes = [item.get("link", "") for item in resultados_busqueda.get("organic", [])]
+
+                    # Generar definición
+                    definicion = generar_definicion(termino, contexto)
+
+                    terminos_definiciones[termino] = (definicion, fuentes)
+
+                # Crear y descargar el documento con todas las definiciones
+                doc = create_docx(terminos_definiciones)
+                buffer = BytesIO()
+                doc.save(buffer)
+                buffer.seek(0)
+                st.download_button(
+                    label="Descargar todas las definiciones en DOCX",
+                    data=buffer,
+                    file_name="Diccionario_Pragmatismo_Completo.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+        elif termino:
             with st.spinner("Buscando información y generando definición..."):
                 # Buscar información relevante
                 resultados_busqueda = buscar_informacion(termino)
@@ -132,7 +160,7 @@ with col2:
                 st.markdown(definicion)
 
                 # Botón para descargar el documento
-                doc = create_docx(termino, definicion, fuentes)
+                doc = create_docx({termino: (definicion, fuentes)})
                 buffer = BytesIO()
                 doc.save(buffer)
                 buffer.seek(0)
