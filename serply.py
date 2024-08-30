@@ -17,10 +17,9 @@ def crear_columna_info():
     ### Cómo usar la aplicación:
 
     1. Elija un término filosófico de la lista predefinida o proponga su propio término.
-    2. Seleccione uno o más autores pragmatistas.
-    3. Haga clic en "Obtener definición" para generar las definiciones.
-    4. Lea las definiciones y fuentes proporcionadas.
-    5. Si lo desea, descargue un documento DOCX con toda la información.
+    2. Haga clic en "Obtener definición" para generar las definiciones.
+    3. Lea las definiciones y fuentes proporcionadas.
+    4. Si lo desea, descargue un documento DOCX con toda la información.
 
     ### Autor y actualización:
     **Moris Polanco**, 27 ag 2024
@@ -59,16 +58,10 @@ with col2:
         "Teoría", "Transformación", "Utopía", "Valor", "Verdad", "Vitalidad", "Voluntarismo"
     ])
 
-    # Pragmatist authors
-    autores_pragmatistas = [
-        "Charles Sanders Peirce", "William James", "John Dewey", "Richard Rorty", "Hilary Putnam", 
-        "George Herbert Mead", "Sidney Hook", "Clarence Irving Lewis", "Josiah Royce", "Jane Addams"
-    ]
-
-    def buscar_informacion(query, autor):
+    def buscar_informacion(query):
         url = "https://api.serply.io/v1/scholar"
         params = {
-            "q": f"{query} {autor} Filosofía Pragmatista"
+            "q": f"{query} Filosofía Pragmatista"
         }
         headers = {
             'X-Api-Key': SERPLY_API_KEY,
@@ -77,11 +70,11 @@ with col2:
         response = requests.get(url, headers=headers, params=params)
         return response.json()
 
-    def generar_definicion(termino, autor, contexto):
+    def generar_definicion(termino, contexto):
         url = "https://api.together.xyz/inference"
         payload = json.dumps({
             "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-            "prompt": f"Contexto: {contexto}\n\nTérmino: {termino}\nAutor: {autor}\n\nProporciona una definición del término filosófico '{termino}' según el pensamiento de {autor}, un autor de la Filosofía Pragmatista. La definición debe ser concisa pero informativa, similar a una entrada de diccionario. Si es posible, incluye una referencia a una obra específica de {autor} que trate este concepto.\n\nDefinición:",
+            "prompt": f"Contexto: {contexto}\n\nTérmino: {termino}\n\nProporciona una definición del término filosófico '{termino}' según el pensamiento de la Filosofía Pragmatista. La definición debe ser concisa pero informativa, similar a una entrada de diccionario. Si es posible, incluye una referencia a una obra específica que trate este concepto.\n\nDefinición:",
             "max_tokens": 2048,
             "temperature": 0,
             "top_p": 0.7,
@@ -96,16 +89,15 @@ with col2:
         response = requests.post(url, headers=headers, data=payload)
         return response.json()['output']['choices'][0]['text'].strip()
 
-    def create_docx(termino, definiciones, fuentes):
+    def create_docx(termino, definicion, fuentes):
         doc = Document()
         doc.add_heading('Diccionario Filosófico - Pragmatismo', 0)
 
         doc.add_heading('Término', level=1)
         doc.add_paragraph(termino)
 
-        for autor, definicion in definiciones.items():
-            doc.add_heading(f'Definición según {autor}', level=2)
-            doc.add_paragraph(definicion)
+        doc.add_heading('Definición', level=2)
+        doc.add_paragraph(definicion)
 
         doc.add_heading('Fuentes', level=1)
         for fuente in fuentes:
@@ -124,44 +116,31 @@ with col2:
     else:
         termino = st.text_input("Ingresa tu propio término filosófico:")
 
-    st.write("Selecciona uno o más autores pragmatistas (máximo 5):")
-    autores_seleccionados = st.multiselect("Autores", autores_pragmatistas)
+    if st.button("Obtener definición"):
+        if termino:
+            with st.spinner("Buscando información y generando definición..."):
+                # Buscar información relevante
+                resultados_busqueda = buscar_informacion(termino)
+                contexto = "\n".join([item.get("snippet", "") for item in resultados_busqueda.get("organic", [])])
+                fuentes = [item.get("link", "") for item in resultados_busqueda.get("organic", [])]
 
-    if len(autores_seleccionados) > 5:
-        st.warning("Has seleccionado más de 5 autores. Por favor, selecciona un máximo de 5.")
-    else:
-        if st.button("Obtener definición"):
-            if termino and autores_seleccionados:
-                with st.spinner("Buscando información y generando definiciones..."):
-                    definiciones, todas_fuentes = {}, []
+                # Generar definición
+                definicion = generar_definicion(termino, contexto)
 
-                    for autor in autores_seleccionados:
-                        # Buscar información relevante
-                        resultados_busqueda = buscar_informacion(termino, autor)
-                        contexto = "\n".join([item.get("snippet", "") for item in resultados_busqueda.get("organic", [])])
-                        fuentes = [item.get("link", "") for item in resultados_busqueda.get("organic", [])]
+                # Mostrar la definición
+                st.subheader(f"Definición para el término: {termino}")
+                st.markdown(definicion)
 
-                        # Generar definición
-                        definicion = generar_definicion(termino, autor, contexto)
-
-                        definiciones[autor] = definicion
-                        todas_fuentes.extend(fuentes)
-
-                    # Mostrar las definiciones
-                    st.subheader(f"Definiciones para el término: {termino}")
-                    for autor, definicion in definiciones.items():
-                        st.markdown(f"**{autor}:** {definicion}")
-
-                    # Botón para descargar el documento
-                    doc = create_docx(termino, definiciones, todas_fuentes)
-                    buffer = BytesIO()
-                    doc.save(buffer)
-                    buffer.seek(0)
-                    st.download_button(
-                        label="Descargar definición en DOCX",
-                        data=buffer,
-                        file_name=f"Definicion_{termino.replace(' ', '_')}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
-            else:
-                st.warning("Por favor, selecciona un término y al menos un autor.")
+                # Botón para descargar el documento
+                doc = create_docx(termino, definicion, fuentes)
+                buffer = BytesIO()
+                doc.save(buffer)
+                buffer.seek(0)
+                st.download_button(
+                    label="Descargar definición en DOCX",
+                    data=buffer,
+                    file_name=f"Definicion_{termino.replace(' ', '_')}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+        else:
+            st.warning("Por favor, selecciona un término.")
