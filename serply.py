@@ -99,9 +99,11 @@ with col2:
         doc.add_heading('Definición', level=1)
         doc.add_paragraph(definicion)
 
-        doc.add_heading('Referencia', level=1)
-        for fuente in fuentes:
-            doc.add_paragraph(fuente, style='List Bullet')
+        # Add "Referencia" only once in the document
+        if fuentes:
+            doc.add_heading('Referencia', level=1)
+            for fuente in fuentes:
+                doc.add_paragraph(fuente, style='List Bullet')
 
         doc.add_paragraph('\nNota: Este documento fue generado por un asistente de IA. Verifica la información con fuentes académicas para un análisis más profundo.')
 
@@ -166,10 +168,12 @@ with col2:
                 doc.add_heading('Definición', level=1)
                 doc.add_paragraph(definicion)
 
-                doc.add_heading('Referencia', level=1)
-                for fuente in fuentes:
-                    doc.add_paragraph(fuente, style='List Bullet')
-                
+                # Add "Referencia" only once in the document
+                if fuentes:
+                    doc.add_heading('Referencia', level=1)
+                    for fuente in fuentes:
+                        doc.add_paragraph(fuente, style='List Bullet')
+
                 doc.add_page_break()
 
             buffer = BytesIO()
