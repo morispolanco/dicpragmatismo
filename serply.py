@@ -17,8 +17,8 @@ def crear_columna_info():
     ### Cómo usar la aplicación:
 
     1. Elija un término filosófico de la lista predefinida o proponga su propio término.
-    2. Haga clic en "Obtener definición" para generar las definiciones.
-    3. Lea las definiciones y fuentes proporcionadas.
+    2. Haga clic en "Obtener definición" para generar la definición.
+    3. Lea la definición y referencia proporcionada.
     4. Si lo desea, descargue un documento DOCX con toda la información.
 
     ### Autor y actualización:
@@ -74,7 +74,7 @@ with col2:
         url = "https://api.together.xyz/inference"
         payload = json.dumps({
             "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-            "prompt": f"Contexto: {contexto}\n\nTérmino: {termino}\n\nProporciona una definición del término filosófico '{termino}' según el pensamiento de la Filosofía Pragmatista. La definición debe ser concisa pero informativa, similar a una entrada de diccionario. Si es posible, incluye una referencia a una obra específica que trate este concepto.\n\nDefinición:",
+            "prompt": f"Contexto: {contexto}\n\nTérmino: {termino}\n\nProporciona una definición del término filosófico '{termino}' según el pensamiento de la Filosofía Pragmatista. La definición debe ser concisa pero informativa, similar a una entrada de diccionario. Si es posible, incluye una referencia a una obra específica relacionada con este concepto.\n\nDefinición:",
             "max_tokens": 2048,
             "temperature": 0,
             "top_p": 0.7,
@@ -89,63 +89,35 @@ with col2:
         response = requests.post(url, headers=headers, data=payload)
         return response.json()['output']['choices'][0]['text'].strip()
 
-    def create_docx(terminos_definiciones):
+    def create_docx(termino, definicion, fuentes):
         doc = Document()
         doc.add_heading('Diccionario Filosófico - Pragmatismo', 0)
 
-        for termino, (definicion, fuentes) in terminos_definiciones.items():
-            doc.add_heading('Término', level=1)
-            doc.add_paragraph(termino)
+        doc.add_heading('Término', level=1)
+        doc.add_paragraph(termino)
 
-            doc.add_heading('Definición', level=2)
-            doc.add_paragraph(definicion)
+        doc.add_heading('Definición', level=1)
+        doc.add_paragraph(definicion)
 
-            doc.add_heading('Fuentes', level=1)
-            for fuente in fuentes:
-                doc.add_paragraph(fuente, style='List Bullet')
+        doc.add_heading('Referencia', level=1)
+        for fuente in fuentes:
+            doc.add_paragraph(fuente, style='List Bullet')
 
         doc.add_paragraph('\nNota: Este documento fue generado por un asistente de IA. Verifica la información con fuentes académicas para un análisis más profundo.')
 
         return doc
 
-    st.write("Elige un término filosófico de la lista, propón tu propio término, o genera todos los artículos:")
+    st.write("Elige un término filosófico de la lista o propón tu propio término:")
 
-    opcion = st.radio("", ["Elegir de la lista", "Proponer mi propio término", "Generar todos los artículos en batch"])
+    opcion = st.radio("", ["Elegir de la lista", "Proponer mi propio término"])
 
     if opcion == "Elegir de la lista":
         termino = st.selectbox("Selecciona un término:", terminos_filosoficos)
-    elif opcion == "Proponer mi propio término":
-        termino = st.text_input("Ingresa tu propio término filosófico:")
     else:
-        termino = None
+        termino = st.text_input("Ingresa tu propio término filosófico:")
 
-    if st.button("Obtener definición" if opcion != "Generar todos los artículos en batch" else "Generar todos los artículos"):
-        if opcion == "Generar todos los artículos en batch":
-            with st.spinner("Generando todas las definiciones en batch..."):
-                terminos_definiciones = {}
-                for termino in terminos_filosoficos:
-                    # Buscar información relevante
-                    resultados_busqueda = buscar_informacion(termino)
-                    contexto = "\n".join([item.get("snippet", "") for item in resultados_busqueda.get("organic", [])])
-                    fuentes = [item.get("link", "") for item in resultados_busqueda.get("organic", [])]
-
-                    # Generar definición
-                    definicion = generar_definicion(termino, contexto)
-
-                    terminos_definiciones[termino] = (definicion, fuentes)
-
-                # Crear y descargar el documento con todas las definiciones
-                doc = create_docx(terminos_definiciones)
-                buffer = BytesIO()
-                doc.save(buffer)
-                buffer.seek(0)
-                st.download_button(
-                    label="Descargar todas las definiciones en DOCX",
-                    data=buffer,
-                    file_name="Diccionario_Pragmatismo_Completo.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-        elif termino:
+    if st.button("Obtener definición"):
+        if termino:
             with st.spinner("Buscando información y generando definición..."):
                 # Buscar información relevante
                 resultados_busqueda = buscar_informacion(termino)
@@ -160,7 +132,7 @@ with col2:
                 st.markdown(definicion)
 
                 # Botón para descargar el documento
-                doc = create_docx({termino: (definicion, fuentes)})
+                doc = create_docx(termino, definicion, fuentes)
                 buffer = BytesIO()
                 doc.save(buffer)
                 buffer.seek(0)
@@ -172,3 +144,40 @@ with col2:
                 )
         else:
             st.warning("Por favor, selecciona un término.")
+
+    st.write("También puedes generar todos los artículos en batch:")
+
+    if st.button("Generar todos los artículos en batch"):
+        with st.spinner("Generando todos los artículos..."):
+            batch_definiciones = []
+            for termino in terminos_filosoficos:
+                resultados_busqueda = buscar_informacion(termino)
+                contexto = "\n".join([item.get("snippet", "") for item in resultados_busqueda.get("organic", [])])
+                definicion = generar_definicion(termino, contexto)
+                batch_definiciones.append((termino, definicion, [item.get("link", "") for item in resultados_busqueda.get("organic", [])]))
+
+            doc = Document()
+            doc.add_heading('Diccionario Filosófico - Pragmatismo', 0)
+            
+            for termino, definicion, fuentes in batch_definiciones:
+                doc.add_heading('Término', level=1)
+                doc.add_paragraph(termino)
+
+                doc.add_heading('Definición', level=1)
+                doc.add_paragraph(definicion)
+
+                doc.add_heading('Referencia', level=1)
+                for fuente in fuentes:
+                    doc.add_paragraph(fuente, style='List Bullet')
+                
+                doc.add_page_break()
+
+            buffer = BytesIO()
+            doc.save(buffer)
+            buffer.seek(0)
+            st.download_button(
+                label="Descargar todos los artículos en DOCX",
+                data=buffer,
+                file_name="Diccionario_Filosofico_Pragmatismo_Batch.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
